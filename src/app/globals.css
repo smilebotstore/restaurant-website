@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-cream-50 text-maroon-950 antialiased;
+  overflow-x: hidden;
+}
+
+section[id] {
+  scroll-margin-top: 84px;
+}
+
+::selection {
+  @apply bg-gold-400 text-maroon-950;
+}
