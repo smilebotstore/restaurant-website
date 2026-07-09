@@ -40,12 +40,16 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-cream-50/90 shadow-card backdrop-blur-md py-4"
-          : "bg-transparent py-6"
+      className={`fixed inset-x-0 top-0 z-50 transition-[padding] duration-300 ${
+        scrolled ? "py-4" : "py-6"
       }`}
     >
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 -z-10 bg-cream-50/90 shadow-card backdrop-blur-md transition-opacity duration-300 will-change-[opacity] ${
+          scrolled ? "opacity-100" : "opacity-0"
+        }`}
+      />
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
         <a
           href="#home"
