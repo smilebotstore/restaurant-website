@@ -23,7 +23,7 @@ const scriptFont = Kaushan_Script({
 });
 
 export const metadata = {
-  title: "Nasi Goreng Jaya Bintang | Solusi Untuk Lapar Mu",
+  title: "Nasi Goreng Jaya Bintang - Solusi Untuk Lapar Mu",
   description:
     "Nasi Goreng Jaya Bintang di Jl. Sultan Agung, Sumberbaru, Jember. Nasi goreng dan mie goreng dengan cita rasa lezat, harga terjangkau. Pesan langsung via WhatsApp.",
   icons: {
