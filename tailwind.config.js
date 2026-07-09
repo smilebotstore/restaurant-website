@@ -24,6 +24,7 @@ module.exports = {
       fontFamily: {
         display: ["var(--font-display)"],
         body: ["var(--font-body)"],
+        script: ["var(--font-script)"],
       },
       boxShadow: {
         soft: "0 20px 45px -15px rgba(42, 10, 10, 0.35)",
