@@ -17,9 +17,19 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll);
+    let ticking = false;
+    const update = () => {
+      setScrolled(window.scrollY > 24);
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -32,17 +42,17 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 py-5 transition-[background-color,box-shadow,backdrop-filter] duration-300 ease-out ${
         scrolled
-          ? "bg-cream-50/90 shadow-card backdrop-blur-md py-4"
-          : "bg-transparent py-6"
+          ? "bg-cream-50/90 shadow-card backdrop-blur-md"
+          : "bg-transparent"
       }`}
     >
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
         <a
           href="#home"
           onClick={(e) => handleNavClick(e, "#home")}
-          className={`font-script text-2xl tracking-wide sm:text-3xl ${
+          className={`font-script text-2xl tracking-wide transition-colors duration-300 ease-out sm:text-3xl ${
             scrolled ? "text-maroon-900" : "text-gold-400"
           }`}
         >
@@ -79,7 +89,7 @@ export default function Navbar() {
           type="button"
           aria-label="Buka menu navigasi"
           onClick={() => setOpen((v) => !v)}
-          className={`md:hidden ${scrolled ? "text-maroon-900" : "text-cream-50"}`}
+          className={`md:hidden transition-colors duration-300 ease-out ${scrolled ? "text-maroon-900" : "text-cream-50"}`}
         >
           {open ? <X size={26} /> : <MenuIcon size={26} />}
         </button>
