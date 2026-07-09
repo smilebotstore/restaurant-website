@@ -1,4 +1,4 @@
-import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
+import { Playfair_Display, Plus_Jakarta_Sans, Kaushan_Script } from "next/font/google";
 import "./globals.css";
 
 const displayFont = Playfair_Display({
@@ -15,6 +15,13 @@ const bodyFont = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const scriptFont = Kaushan_Script({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-script",
+  display: "swap",
+});
+
 export const metadata = {
   title: "Nasi Goreng Jaya Bintang | Solusi Untuk Lapar Mu",
   description:
@@ -23,7 +30,10 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id" className={`${displayFont.variable} ${bodyFont.variable}`}>
+    <html
+      lang="id"
+      className={`${displayFont.variable} ${bodyFont.variable} ${scriptFont.variable}`}
+    >
       <body className="font-body">{children}</body>
     </html>
   );
