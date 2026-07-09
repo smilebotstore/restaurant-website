@@ -34,16 +34,16 @@ export default function Navbar() {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-cream-50/90 shadow-card backdrop-blur-md py-3"
-          : "bg-transparent py-5"
+          ? "bg-cream-50/90 shadow-card backdrop-blur-md py-4"
+          : "bg-transparent py-6"
       }`}
     >
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
         <a
           href="#home"
           onClick={(e) => handleNavClick(e, "#home")}
-          className={`font-display text-lg font-bold tracking-tight sm:text-xl ${
-            scrolled ? "text-maroon-900" : "text-cream-50"
+          className={`font-script text-2xl tracking-wide sm:text-3xl ${
+            scrolled ? "text-maroon-900" : "text-gold-400"
           }`}
         >
           Nasgor Jaya Bintang
