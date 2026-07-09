@@ -26,6 +26,14 @@ export const metadata = {
   title: "Nasi Goreng Jaya Bintang | Solusi Untuk Lapar Mu",
   description:
     "Nasi Goreng Jaya Bintang di Jl. Sultan Agung, Sumberbaru, Jember. Nasi goreng dan mie goreng dengan cita rasa lezat, harga terjangkau. Pesan langsung via WhatsApp.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }) {
