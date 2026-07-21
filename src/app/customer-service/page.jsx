@@ -232,7 +232,7 @@ export default function CustomerServicePage() {
         <p className="mx-auto mt-2.5 max-w-2xl text-center text-[11px] leading-relaxed text-cream-50/40">
           Jaya Bintang AI dapat memberikan info yang kurang akurat. Untuk
           pemesanan pasti, hubungi{" "}
-          
+          <a
             href={restaurant.whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
