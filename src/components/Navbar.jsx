@@ -52,7 +52,7 @@ export default function Navbar() {
         }`}
       />
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
-        
+        <a
           href="#home"
           onClick={(e) => handleNavClick(e, "#home")}
           className={`font-script text-2xl tracking-wide sm:text-3xl ${
@@ -64,7 +64,7 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-8 md:flex">
           {links.map((link) => (
-            
+            <a
               key={link.href}
               href={link.href}
               onClick={(e) => handleNavClick(e, link.href)}
@@ -89,7 +89,7 @@ export default function Navbar() {
             <Bot size={18} />
           </Link>
 
-          
+          <a
             href={restaurant.whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -131,7 +131,7 @@ export default function Navbar() {
           >
             <div className="flex flex-col gap-1 px-5 py-4">
               {links.map((link) => (
-                
+                <a
                   key={link.href}
                   href={link.href}
                   onClick={(e) => handleNavClick(e, link.href)}
@@ -140,7 +140,7 @@ export default function Navbar() {
                   {link.label}
                 </a>
               ))}
-              
+              <a
                 href={restaurant.whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -155,4 +155,4 @@ export default function Navbar() {
       </AnimatePresence>
     </header>
   );
-            }
+}
