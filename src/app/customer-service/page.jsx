@@ -137,21 +137,22 @@ export default function CustomerServicePage() {
       </header>
 
       {/* Body */}
-      <div className="relative flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="relative flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
         {!hasMessages ? (
-          <div className="mx-auto flex h-full max-w-lg flex-col items-center justify-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/15 text-gold-400 shadow-soft">
-              <ChefHat size={28} />
+          <div className="mx-auto flex min-h-full max-w-lg flex-col items-center justify-center py-6 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 sm:h-16 sm:w-16 sm:rounded-2xl">
+              <ChefHat size={22} className="sm:hidden" />
+              <ChefHat size={28} className="hidden sm:block" />
             </div>
-            <h1 className="mt-5 font-display text-2xl font-bold text-cream-50 sm:text-3xl">
+            <h1 className="mt-4 font-display text-xl font-bold text-cream-50 sm:mt-5 sm:text-3xl">
               Selamat Datang di Jaya Bintang AI
             </h1>
-            <p className="mt-2.5 max-w-sm text-sm leading-relaxed text-cream-50/60">
+            <p className="mt-2 max-w-sm text-xs leading-relaxed text-cream-50/60 sm:text-sm">
               Tanya apa saja soal menu, harga, promo, atau cara pesan di Nasi
               Goreng Jaya Bintang. Belum tahu mau tanya apa?
             </p>
 
-            <div className="mt-8 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid w-full grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-2 sm:gap-3">
               {suggestions.map((s) => (
                 <SuggestionCard
                   key={s.label}
@@ -164,7 +165,7 @@ export default function CustomerServicePage() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex max-w-2xl flex-col gap-5">
+          <div className="mx-auto flex max-w-2xl flex-col gap-4">
             {messages.map((m, i) => (
               <ChatMessage key={i} role={m.role} content={m.content} />
             ))}
