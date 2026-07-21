@@ -208,10 +208,10 @@ export default function CustomerServicePage() {
       </div>
 
       {/* Input bar */}
-      <div className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-4 py-3.5 sm:px-6">
+      <div className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-[env(safe-area-inset-bottom,8px)] pt-2.5 sm:px-6 sm:py-3">
         <form
           onSubmit={handleSubmit}
-          className="mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border-2 border-cream-50/10 bg-maroon-900 px-3 py-2 transition-colors focus-within:border-gold-400"
+          className="mx-auto flex max-w-2xl items-end gap-2 rounded-xl border-2 border-cream-50/10 bg-maroon-900 px-2.5 py-1.5 transition-colors focus-within:border-gold-400"
         >
           <textarea
             rows={1}
@@ -219,28 +219,20 @@ export default function CustomerServicePage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Tanya soal menu, harga, atau cara pesan..."
-            className="max-h-28 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-cream-50 placeholder:text-cream-50/35 focus:outline-none"
+            className="max-h-28 flex-1 resize-none bg-transparent px-1.5 py-2 text-[13px] text-cream-50 placeholder:text-cream-50/35 focus:outline-none"
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
             aria-label="Kirim pesan"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-500 text-maroon-950 transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+            className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-500 text-maroon-950 transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
           >
-            <Send size={15} />
+            <Send size={14} />
           </button>
         </form>
-        <p className="mx-auto mt-2.5 max-w-2xl text-center text-[11px] leading-relaxed text-cream-50/40">
-          Jaya Bintang AI dapat memberikan info yang kurang akurat. Untuk
-          pemesanan pasti, hubungi{" "}
-          <a href={restaurant.whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-gold-400 hover:underline"
-          >
-            WhatsApp kami
-          </a>
-          .
+        <p className="mx-auto mt-1.5 max-w-2xl text-center text-[10px] leading-snug text-cream-50/35">
+          Jaya Bintang AI dapat memberikan info yang kurang akurat. Untuk pemesanan pasti, hubungi{" "}
+          <a href={restaurant.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-gold-400 hover:underline">WhatsApp kami</a>.
         </p>
       </div>
     </div>
