@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu as MenuIcon, X, MessageCircle } from "lucide-react";
+import { Menu as MenuIcon, X, MessageCircle, Bot } from "lucide-react";
 import { restaurant } from "@/data/restaurant";
 
 const links = [
@@ -51,7 +52,7 @@ export default function Navbar() {
         }`}
       />
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
-        <a
+        
           href="#home"
           onClick={(e) => handleNavClick(e, "#home")}
           className={`font-script text-2xl tracking-wide sm:text-3xl ${
@@ -63,7 +64,7 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-8 md:flex">
           {links.map((link) => (
-            <a
+            
               key={link.href}
               href={link.href}
               onClick={(e) => handleNavClick(e, link.href)}
@@ -76,7 +77,19 @@ export default function Navbar() {
               {link.label}
             </a>
           ))}
-          <a
+          <Link
+            href="/customer-service"
+            aria-label="Buka Jaya Bintang AI"
+            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors ${
+              scrolled
+                ? "border-maroon-900/15 text-maroon-900 hover:border-gold-500 hover:text-gold-600"
+                : "border-cream-50/25 text-cream-50 hover:border-gold-400 hover:text-gold-400"
+            }`}
+          >
+            <Bot size={18} />
+          </Link>
+
+          
             href={restaurant.whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -87,14 +100,24 @@ export default function Navbar() {
           </a>
         </div>
 
-        <button
-          type="button"
-          aria-label="Buka menu navigasi"
-          onClick={() => setOpen((v) => !v)}
-          className={`md:hidden ${scrolled ? "text-maroon-900" : "text-cream-50"}`}
-        >
-          {open ? <X size={26} /> : <MenuIcon size={26} />}
-        </button>
+        <div className="flex items-center gap-3 md:hidden">
+          <Link
+            href="/customer-service"
+            aria-label="Buka Jaya Bintang AI"
+            className={scrolled ? "text-maroon-900" : "text-cream-50"}
+          >
+            <Bot size={24} />
+          </Link>
+
+          <button
+            type="button"
+            aria-label="Buka menu navigasi"
+            onClick={() => setOpen((v) => !v)}
+            className={scrolled ? "text-maroon-900" : "text-cream-50"}
+          >
+            {open ? <X size={26} /> : <MenuIcon size={26} />}
+          </button>
+        </div>
       </nav>
 
       <AnimatePresence>
@@ -108,7 +131,7 @@ export default function Navbar() {
           >
             <div className="flex flex-col gap-1 px-5 py-4">
               {links.map((link) => (
-                <a
+                
                   key={link.href}
                   href={link.href}
                   onClick={(e) => handleNavClick(e, link.href)}
@@ -117,7 +140,7 @@ export default function Navbar() {
                   {link.label}
                 </a>
               ))}
-              <a
+              
                 href={restaurant.whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
