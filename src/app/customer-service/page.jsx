@@ -48,7 +48,25 @@ export default function CustomerServicePage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [viewportHeight, setViewportHeight] = useState(null);
   const scrollRef = useRef(null);
+
+  // Fix ketidakkonsistenan unit dvh/vh di berbagai browser mobile:
+  // pakai tinggi viewport asli dari JS (window.innerHeight / visualViewport),
+  // yang selalu akurat mengikuti ukuran layar yang benar-benar terlihat.
+  useEffect(() => {
+    function updateHeight() {
+      const h = window.visualViewport?.height || window.innerHeight;
+      setViewportHeight(h);
+    }
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.visualViewport?.addEventListener("resize", updateHeight);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.visualViewport?.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -104,7 +122,10 @@ export default function CustomerServicePage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-maroon-950">
+    <div
+      className="relative flex flex-col overflow-hidden bg-maroon-950"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : "100vh" }}
+    >
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-maroon-700/30 blur-3xl" />
         <div className="absolute -bottom-24 right-0 h-96 w-96 rounded-full bg-gold-500/10 blur-3xl" />
@@ -208,7 +229,7 @@ export default function CustomerServicePage() {
       </div>
 
       {/* Input bar */}
-      <div className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-[env(safe-area-inset-bottom,8px)] pt-2.5 sm:px-6 sm:py-3">
+      <div className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-3 pt-2.5 sm:px-6 sm:py-3">
         <form
           onSubmit={handleSubmit}
           className="mx-auto flex max-w-2xl items-end gap-2 rounded-xl border-2 border-cream-50/10 bg-maroon-900 px-2.5 py-1.5 transition-colors focus-within:border-gold-400"
