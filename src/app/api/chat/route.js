@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import restaurantInfo from "@/data/restaurant-info.json";
-import menu from "@/data/menu.json";
 import systemPromptData from "@/data/system-prompt.json";
+import { buildSystemPrompt } from "@/lib/system-prompt";
 
 // Model Groq yang dipakai. Bisa diganti lewat env var GROQ_MODEL kalau perlu.
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
@@ -15,29 +14,6 @@ const CODE_REQUEST_PATTERN =
 
 function isCodeRequest(text) {
   return CODE_REQUEST_PATTERN.test(text);
-}
-
-function buildSystemPrompt() {
-  return `${systemPromptData.persona}
-
-TUJUAN KAMU:
-${systemPromptData.goals.map((g) => `- ${g}`).join("\n")}
-
-ATURAN WAJIB:
-${systemPromptData.rules.map((r) => `- ${r}`).join("\n")}
-
-TOPIK YANG WAJIB DITOLAK (RESTRICTED — tanpa terkecuali):
-${systemPromptData.restrictedTopics.map((t) => `- ${t}`).join("\n")}
-
-Contoh jawaban saat menolak topik restricted: "${systemPromptData.restrictedReplyExample}"
-
-=== DATA WARUNG (sumber kebenaran, jangan mengarang di luar ini) ===
-${JSON.stringify(restaurantInfo, null, 2)}
-
-=== DATA MENU (sumber kebenaran, jangan mengarang di luar ini) ===
-${JSON.stringify(menu, null, 2)}
-
-Contoh gaya sapaan pembuka: "${systemPromptData.greetingExample}"`;
 }
 
 export async function POST(req) {
