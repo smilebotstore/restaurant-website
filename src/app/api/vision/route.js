@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 const NEOXR_BASE = "https://api.neoxr.eu/api";
 const NEOXR_API_KEY = process.env.NEOXR_API_KEY || "2taQ2a";
-const TELEGRAPH_UPLOAD_URL = "https://telegra.ph/upload";
+// Client-ID publik resmi dari dokumentasi Imgur untuk upload anonim. Dipakai
+// sebagai default supaya fitur langsung jalan; untuk kuota lebih besar, daftar
+// Client-ID sendiri gratis di https://api.imgur.com/oauth2/addclient.
+const IMGUR_CLIENT_ID = process.env.IMGUR_CLIENT_ID || "546c25a59c58ad7";
+const IMGUR_UPLOAD_URL = "https://api.imgur.com/3/image";
 
 const DEFAULT_QUERY =
   "Jelaskan gambar ini secara singkat dan jelas dalam Bahasa Indonesia.";
@@ -46,35 +50,27 @@ export async function POST(req) {
       );
     }
 
-    // Upload ke Telegraph dulu supaya dapat URL publik yang bisa diakses API vision
-    const telegraphForm = new FormData();
-    telegraphForm.append("file", file, file.name || "image.jpg");
+    // Upload ke Imgur dulu supaya dapat URL publik yang bisa diakses API vision
+    const imgurForm = new FormData();
+    imgurForm.append("image", file, file.name || "image.jpg");
 
-    const telegraphRes = await fetch(TELEGRAPH_UPLOAD_URL, {
+    const imgurRes = await fetch(IMGUR_UPLOAD_URL, {
       method: "POST",
-      body: telegraphForm,
+      headers: { Authorization: `Client-ID ${IMGUR_CLIENT_ID}` },
+      body: imgurForm,
     });
 
-    if (!telegraphRes.ok) {
-      console.error("Telegraph upload error:", telegraphRes.status);
+    const imgurData = await imgurRes.json().catch(() => null);
+
+    if (!imgurRes.ok || !imgurData?.success || !imgurData?.data?.link) {
+      console.error("Imgur upload error:", imgurRes.status, imgurData);
       return NextResponse.json(
         { error: "Gagal mengunggah gambar, coba lagi ya." },
         { status: 502 }
       );
     }
 
-    const telegraphData = await telegraphRes.json();
-    const path = Array.isArray(telegraphData) ? telegraphData[0]?.src : null;
-
-    if (!path) {
-      console.error("Telegraph upload unexpected response:", telegraphData);
-      return NextResponse.json(
-        { error: "Gagal mengunggah gambar, coba lagi ya." },
-        { status: 502 }
-      );
-    }
-
-    const imageUrl = `https://telegra.ph${path}`;
+    const imageUrl = imgurData.data.link;
 
     const visionUrl = `${NEOXR_BASE}/gemini-vision?${new URLSearchParams({
       image: imageUrl,
