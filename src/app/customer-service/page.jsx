@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   ChefHat,
@@ -11,6 +11,9 @@ import {
   Bike,
   MapPin,
   Sparkles,
+  ImageIcon,
+  X,
+  Loader2,
 } from "lucide-react";
 import ChatMessage from "@/components/chat/ChatMessage";
 import SuggestionCard from "@/components/chat/SuggestionCard";
@@ -43,84 +46,118 @@ const suggestions = [
   },
 ];
 
-const MEMORY_KEY = "jb-ai-memory";
-const MEMORY_LIMIT = 16; // ~8 pertukaran pesan lama yang tetap diingat AI
-
-function loadMemory() {
-  try {
-    const raw = window.localStorage.getItem(MEMORY_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveMemory(memory) {
-  try {
-    window.localStorage.setItem(
-      MEMORY_KEY,
-      JSON.stringify(memory.slice(-MEMORY_LIMIT))
-    );
-  } catch {
-    // localStorage tidak tersedia (mis. private mode) — abaikan, memori tidak fatal.
-  }
-}
-
 export default function CustomerServicePage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const bodyRef = useRef(null);
-  // Memori percakapan lintas-sesi: dikirim ke AI supaya dia tetap "ingat" user,
-  // tapi TIDAK ditaruh di state `messages` sehingga tidak ikut tampil di UI
-  // ketika user keluar-masuk halaman ini lagi.
-  const memoryRef = useRef([]);
+  const [viewportHeight, setViewportHeight] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl }
+  const [imageUploading, setImageUploading] = useState(false);
+  const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
+  // Fix ketidakkonsistenan unit dvh/vh di berbagai browser mobile:
+  // pakai tinggi viewport asli dari JS (window.innerHeight / visualViewport),
+  // yang selalu akurat mengikuti ukuran layar yang benar-benar terlihat.
   useEffect(() => {
-    memoryRef.current = loadMemory();
-  }, []);
-
-  // Kunci scroll halaman (html/body) selama di halaman ini supaya scroll-into-view
-  // di bawah tidak pernah "bocor" ke document dan membuat layout terasa mentok/stuck.
-  useEffect(() => {
-    const { style } = document.body;
-    const prevOverflow = style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    function updateHeight() {
+      const h = window.visualViewport?.height || window.innerHeight;
+      setViewportHeight(h);
+    }
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.visualViewport?.addEventListener("resize", updateHeight);
     return () => {
-      style.overflow = prevOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener("resize", updateHeight);
+      window.visualViewport?.removeEventListener("resize", updateHeight);
     };
   }, []);
 
   useEffect(() => {
-    // Scroll hanya di dalam container chat itu sendiri (bukan scrollIntoView,
-    // yang bisa ikut menggeser scroll ancestor/document di beberapa browser mobile).
-    const el = bodyRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    setSelectedImage({ file, previewUrl });
+    setErrorMsg("");
+    // Reset input file supaya event onChange bisa trigger lagi kalau pilih file sama
+    e.target.value = "";
+  }
+
+  function removeSelectedImage() {
+    if (selectedImage?.previewUrl) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+    }
+    setSelectedImage(null);
+  }
 
   async function sendMessage(text) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    const hasImage = !!selectedImage;
 
-    const nextMessages = [...messages, { role: "user", content: trimmed }];
+    if (!trimmed && !hasImage) return;
+    if (loading || imageUploading) return;
+
+    // Buat pesan user — kalau ada gambar tampilkan preview di chat
+    const userMessage = {
+      role: "user",
+      content: trimmed || "📷 Gambar dikirim",
+      imagePreview: hasImage ? selectedImage.previewUrl : null,
+    };
+
+    const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput("");
     setErrorMsg("");
     setLoading(true);
 
+    // Simpan referensi gambar sebelum di-clear
+    const imageToSend = selectedImage;
+    setSelectedImage(null);
+
     try {
+      let imageContext = null;
+
+      // Step 1: Upload + analisis gambar jika ada
+      if (imageToSend) {
+        setImageUploading(true);
+        const formData = new FormData();
+        formData.append("image", imageToSend.file);
+        formData.append("query", trimmed || "Deskripsikan gambar ini secara detail.");
+
+        const uploadRes = await fetch("/api/upload-image", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        setImageUploading(false);
+
+        if (!uploadRes.ok) {
+          setErrorMsg(uploadData?.error || "Gagal memproses gambar, coba lagi ya Kak.");
+          setLoading(false);
+          return;
+        }
+
+        imageContext = uploadData.visionResult;
+      }
+
+      // Step 2: Kirim ke Groq dengan konteks gambar (kalau ada)
+      const messagesForApi = nextMessages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: nextMessages,
-          memory: memoryRef.current,
+          messages: messagesForApi,
+          imageContext,
         }),
       });
 
@@ -135,18 +172,12 @@ export default function CustomerServicePage() {
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-
-      const updatedMemory = [
-        ...memoryRef.current,
-        { role: "user", content: trimmed },
-        { role: "assistant", content: data.reply },
-      ];
-      memoryRef.current = updatedMemory;
-      saveMemory(updatedMemory);
     } catch (err) {
+      setImageUploading(false);
       setErrorMsg("Koneksi bermasalah. Periksa internet kamu lalu coba lagi.");
     } finally {
       setLoading(false);
+      setImageUploading(false);
     }
   }
 
@@ -165,19 +196,17 @@ export default function CustomerServicePage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-maroon-950">
+    <div
+      className="relative flex flex-col overflow-hidden bg-maroon-950"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : "100vh" }}
+    >
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-maroon-700/30 blur-3xl" />
         <div className="absolute -bottom-24 right-0 h-96 w-96 rounded-full bg-gold-500/10 blur-3xl" />
       </div>
 
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative flex shrink-0 items-center justify-between border-b border-cream-50/10 bg-maroon-950/95 px-4 py-3.5 backdrop-blur sm:px-6"
-      >
+      <header className="relative flex shrink-0 items-center justify-between border-b border-cream-50/10 bg-maroon-950/95 px-4 py-3.5 backdrop-blur sm:px-6">
         <Link
           href="/"
           className="flex items-center gap-2 text-sm font-semibold text-cream-50/80 transition-colors hover:text-gold-400"
@@ -200,61 +229,33 @@ export default function CustomerServicePage() {
             <ChefHat size={17} />
           </div>
         </div>
-      </motion.header>
+      </header>
 
       {/* Body */}
-      <div
-        ref={bodyRef}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6"
-      >
+      <div className="relative flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
         {!hasMessages ? (
           <div className="mx-auto flex min-h-full max-w-lg flex-col items-center justify-center py-6 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
-              className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 sm:h-16 sm:w-16 sm:rounded-2xl"
-            >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 sm:h-16 sm:w-16 sm:rounded-2xl">
               <ChefHat size={22} className="sm:hidden" />
               <ChefHat size={28} className="hidden sm:block" />
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-              className="mt-4 font-display text-xl font-bold text-cream-50 sm:mt-5 sm:text-3xl"
-            >
+            </div>
+            <h1 className="mt-4 font-display text-xl font-bold text-cream-50 sm:mt-5 sm:text-3xl">
               Selamat Datang di Jaya Bintang AI
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-              className="mt-2 max-w-sm text-xs leading-relaxed text-cream-50/60 sm:text-sm"
-            >
+            </h1>
+            <p className="mt-2 max-w-sm text-xs leading-relaxed text-cream-50/60 sm:text-sm">
               Tanya apa saja soal menu, harga, promo, atau cara pesan di Nasi
               Goreng Jaya Bintang. Belum tahu mau tanya apa?
-            </motion.p>
+            </p>
 
             <div className="mt-5 grid w-full grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-2 sm:gap-3">
-              {suggestions.map((s, i) => (
-                <motion.div
+              {suggestions.map((s) => (
+                <SuggestionCard
                   key={s.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.45,
-                    ease: "easeOut",
-                    delay: 0.4 + i * 0.08,
-                  }}
-                >
-                  <SuggestionCard
-                    icon={s.icon}
-                    iconBg={s.iconBg}
-                    label={s.label}
-                    onClick={() => sendMessage(s.prompt)}
-                  />
-                </motion.div>
+                  icon={s.icon}
+                  iconBg={s.iconBg}
+                  label={s.label}
+                  onClick={() => sendMessage(s.prompt)}
+                />
               ))}
             </div>
           </div>
@@ -262,7 +263,7 @@ export default function CustomerServicePage() {
           <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-4">
             <div className="mt-auto" />
             {messages.map((m, i) => (
-              <ChatMessage key={i} role={m.role} content={m.content} />
+              <ChatMessage key={i} role={m.role} content={m.content} imagePreview={m.imagePreview} />
             ))}
 
             {loading && (
@@ -297,43 +298,92 @@ export default function CustomerServicePage() {
               </div>
             )}
 
+            <div ref={scrollRef} />
           </div>
         )}
       </div>
 
       {/* Input bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
-        className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-3 pt-2.5 sm:px-6 sm:py-3"
-      >
+      <div className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-3 pt-2.5 sm:px-6 sm:py-3">
+
+        {/* Preview gambar yang dipilih */}
+        <AnimatePresence>
+          {selectedImage && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="mx-auto mb-2 max-w-2xl"
+            >
+              <div className="relative inline-block">
+                <img
+                  src={selectedImage.previewUrl}
+                  alt="Preview"
+                  className="h-20 w-20 rounded-xl object-cover border border-cream-50/20"
+                />
+                <button
+                  type="button"
+                  onClick={removeSelectedImage}
+                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-maroon-900 border border-cream-50/20 text-cream-50/70 hover:text-cream-50"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <form
           onSubmit={handleSubmit}
           className="mx-auto flex max-w-2xl items-end gap-2 rounded-xl border-2 border-cream-50/10 bg-maroon-900 px-2.5 py-1.5 transition-colors focus-within:border-gold-400"
         >
+          {/* Hidden file input - accept gambar dari kamera dan galeri */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture={false}
+            onChange={handleImageSelect}
+            className="hidden"
+          />
+
+          {/* Tombol pilih gambar */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || imageUploading}
+            aria-label="Kirim gambar"
+            className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-cream-50/40 transition-colors hover:text-gold-400 disabled:opacity-30"
+          >
+            <ImageIcon size={17} />
+          </button>
+
           <textarea
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Tanya soal menu, harga, atau cara pesan..."
+            placeholder={selectedImage ? "Tambah pertanyaan soal gambar (opsional)..." : "Tanya soal menu, harga, atau cara pesan..."}
             className="max-h-28 flex-1 resize-none bg-transparent px-1.5 py-2 text-[13px] text-cream-50 placeholder:text-cream-50/35 focus:outline-none"
           />
           <button
             type="submit"
-            disabled={loading || !input.trim()}
+            disabled={loading || imageUploading || (!input.trim() && !selectedImage)}
             aria-label="Kirim pesan"
             className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-500 text-maroon-950 transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
           >
-            <Send size={14} />
+            {imageUploading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Send size={14} />
+            )}
           </button>
         </form>
         <p className="mx-auto mt-1.5 max-w-2xl text-center text-[10px] leading-snug text-cream-50/35">
           Jaya Bintang AI dapat memberikan info yang kurang akurat. Untuk pemesanan pasti, hubungi{" "}
           <a href={restaurant.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-gold-400 hover:underline">WhatsApp kami</a>.
         </p>
-      </motion.div>
+      </div>
     </div>
   );
-}
+          }
