@@ -55,17 +55,33 @@ export async function POST(req) {
 
     const body = await req.json();
     const clientMessages = Array.isArray(body?.messages) ? body.messages : [];
-    const imageContext = body?.imageContext || null; // deskripsi gambar dari Gemini Vision
+    const clientMemory = Array.isArray(body?.memory) ? body.memory : [];
+
+    const isValidMessage = (m) =>
+      m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string";
+
+    // Bentuk ulang jadi { role, content } bersih (buang field lain seperti `image`
+    // yang ditempel UI untuk pesan bergambar) dan pastikan content tidak pernah
+    // string kosong — Groq menolak content kosong untuk role:user, ini terjadi
+    // saat user mengirim gambar tanpa teks sama sekali.
+    const toCleanMessage = (m) => ({
+      role: m.role,
+      content: m.content.trim() || "[User mengirim gambar]",
+    });
 
     // Batasi jumlah riwayat pesan yang dikirim supaya request tetap ringan & aman
     const trimmedHistory = clientMessages
-      .filter(
-        (m) =>
-          m &&
-          (m.role === "user" || m.role === "assistant") &&
-          typeof m.content === "string"
-      )
-      .slice(-20);
+      .filter(isValidMessage)
+      .slice(-20)
+      .map(toCleanMessage);
+
+    // Memori percakapan lintas-sesi (dari localStorage di client) — tidak
+    // ditampilkan di UI, tapi tetap dikirim ke model supaya AI "ingat" konteks
+    // dari sesi sebelumnya milik user yang sama.
+    const memoryHistory = clientMemory
+      .filter(isValidMessage)
+      .slice(-16)
+      .map(toCleanMessage);
 
     if (trimmedHistory.length === 0) {
       return NextResponse.json(
@@ -84,28 +100,12 @@ export async function POST(req) {
       });
     }
 
-    // Kalau ada konteks gambar, inject ke pesan user terakhir
-    const messagesForGroq = imageContext
-      ? trimmedHistory.map((m, i) => {
-          // Inject hanya ke pesan user paling terakhir
-          if (
-            i === trimmedHistory.length - 1 &&
-            m.role === "user"
-          ) {
-            return {
-              ...m,
-              content: `${m.content}\n\n[Pengguna mengirim gambar. Hasil analisis gambar: ${imageContext}]`,
-            };
-          }
-          return m;
-        })
-      : trimmedHistory;
-
     const payload = {
       model: GROQ_MODEL,
       messages: [
         { role: "system", content: buildSystemPrompt() },
-        ...messagesForGroq,
+        ...memoryHistory,
+        ...trimmedHistory,
       ],
       temperature: 0.6,
       max_tokens: 600,
