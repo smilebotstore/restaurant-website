@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildSystemPrompt } from "@/lib/system-prompt";
 
 // Pakai provider & key yang sama dengan /api/chat supaya konsisten dan gratis
 // selama masih di batas free tier Groq.
@@ -7,6 +8,17 @@ const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 const DEFAULT_QUERY =
   "Jelaskan gambar ini secara singkat dan jelas dalam Bahasa Indonesia.";
+
+// Ditempel di akhir system prompt utama (yang sama dipakai /api/chat) supaya
+// analisa gambar tetap "dalam karakter" sebagai customer service warung —
+// bukan lepas jadi asisten AI serbaguna yang bebas ngomong apa saja soal
+// gambar tanpa nyambung ke menu/konteks warung.
+const VISION_INSTRUCTIONS = `
+KONTEKS TAMBAHAN UNTUK PESAN INI: Pengguna melampirkan sebuah gambar bersama pesannya.
+- Tanggapi gambar dan teks pengguna sebagai satu kesatuan percakapan, tetap dalam karaktermu sebagai Jaya Bintang AI.
+- Kalau relevan, kaitkan responsmu dengan rekomendasi menu dari DATA MENU di atas — JANGAN PERNAH menyebut makanan/minuman yang tidak ada di DATA MENU.
+- Kalau isi gambar atau curhatan pengguna di luar topik warung (misalnya gambar tidak nyambung sama sekali dan tidak ada celah wajar untuk mengarah ke rekomendasi menu), tetap deskripsikan gambarnya singkat, lalu ingatkan sopan bahwa kamu cuma bisa bantu soal Nasi Goreng Jaya Bintang.
+- Tetap ikuti ATURAN WAJIB di atas: jawaban singkat dan padat, jangan mengarang menu/harga di luar data.`;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -56,6 +68,7 @@ export async function POST(req) {
     const payload = {
       model: GROQ_VISION_MODEL,
       messages: [
+        { role: "system", content: buildSystemPrompt() + VISION_INSTRUCTIONS },
         {
           role: "user",
           content: [
