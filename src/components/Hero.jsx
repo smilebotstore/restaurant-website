@@ -92,7 +92,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="absolute -left-6 bottom-6 rounded-2xl bg-cream-50 px-5 py-3 shadow-soft sm:-left-8"
+            className="absolute -left-2 bottom-6 rounded-2xl bg-cream-50 px-5 py-3 shadow-soft sm:-left-8"
           >
             <p className="font-display text-2xl font-extrabold text-maroon-900">8K+</p>
             <p className="text-xs font-semibold text-maroon-700/70">Mulai dari</p>
