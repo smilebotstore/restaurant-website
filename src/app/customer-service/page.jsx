@@ -43,12 +43,44 @@ const suggestions = [
   },
 ];
 
+const MEMORY_KEY = "jb-ai-memory";
+const MEMORY_LIMIT = 16; // ~8 pertukaran pesan lama yang tetap diingat AI
+
+function loadMemory() {
+  try {
+    const raw = window.localStorage.getItem(MEMORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMemory(memory) {
+  try {
+    window.localStorage.setItem(
+      MEMORY_KEY,
+      JSON.stringify(memory.slice(-MEMORY_LIMIT))
+    );
+  } catch {
+    // localStorage tidak tersedia (mis. private mode) — abaikan, memori tidak fatal.
+  }
+}
+
 export default function CustomerServicePage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const bodyRef = useRef(null);
+  // Memori percakapan lintas-sesi: dikirim ke AI supaya dia tetap "ingat" user,
+  // tapi TIDAK ditaruh di state `messages` sehingga tidak ikut tampil di UI
+  // ketika user keluar-masuk halaman ini lagi.
+  const memoryRef = useRef([]);
+
+  useEffect(() => {
+    memoryRef.current = loadMemory();
+  }, []);
 
   // Kunci scroll halaman (html/body) selama di halaman ini supaya scroll-into-view
   // di bawah tidak pernah "bocor" ke document dan membuat layout terasa mentok/stuck.
@@ -86,7 +118,10 @@ export default function CustomerServicePage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({
+          messages: nextMessages,
+          memory: memoryRef.current,
+        }),
       });
 
       const data = await res.json();
@@ -100,6 +135,14 @@ export default function CustomerServicePage() {
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+
+      const updatedMemory = [
+        ...memoryRef.current,
+        { role: "user", content: trimmed },
+        { role: "assistant", content: data.reply },
+      ];
+      memoryRef.current = updatedMemory;
+      saveMemory(updatedMemory);
     } catch (err) {
       setErrorMsg("Koneksi bermasalah. Periksa internet kamu lalu coba lagi.");
     } finally {
@@ -129,7 +172,12 @@ export default function CustomerServicePage() {
       </div>
 
       {/* Header */}
-      <header className="relative flex shrink-0 items-center justify-between border-b border-cream-50/10 bg-maroon-950/95 px-4 py-3.5 backdrop-blur sm:px-6">
+      <motion.header
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative flex shrink-0 items-center justify-between border-b border-cream-50/10 bg-maroon-950/95 px-4 py-3.5 backdrop-blur sm:px-6"
+      >
         <Link
           href="/"
           className="flex items-center gap-2 text-sm font-semibold text-cream-50/80 transition-colors hover:text-gold-400"
@@ -152,7 +200,7 @@ export default function CustomerServicePage() {
             <ChefHat size={17} />
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Body */}
       <div
@@ -161,27 +209,52 @@ export default function CustomerServicePage() {
       >
         {!hasMessages ? (
           <div className="mx-auto flex min-h-full max-w-lg flex-col items-center justify-center py-6 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 sm:h-16 sm:w-16 sm:rounded-2xl">
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+              className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 sm:h-16 sm:w-16 sm:rounded-2xl"
+            >
               <ChefHat size={22} className="sm:hidden" />
               <ChefHat size={28} className="hidden sm:block" />
-            </div>
-            <h1 className="mt-4 font-display text-xl font-bold text-cream-50 sm:mt-5 sm:text-3xl">
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+              className="mt-4 font-display text-xl font-bold text-cream-50 sm:mt-5 sm:text-3xl"
+            >
               Selamat Datang di Jaya Bintang AI
-            </h1>
-            <p className="mt-2 max-w-sm text-xs leading-relaxed text-cream-50/60 sm:text-sm">
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
+              className="mt-2 max-w-sm text-xs leading-relaxed text-cream-50/60 sm:text-sm"
+            >
               Tanya apa saja soal menu, harga, promo, atau cara pesan di Nasi
               Goreng Jaya Bintang. Belum tahu mau tanya apa?
-            </p>
+            </motion.p>
 
             <div className="mt-5 grid w-full grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-2 sm:gap-3">
-              {suggestions.map((s) => (
-                <SuggestionCard
+              {suggestions.map((s, i) => (
+                <motion.div
                   key={s.label}
-                  icon={s.icon}
-                  iconBg={s.iconBg}
-                  label={s.label}
-                  onClick={() => sendMessage(s.prompt)}
-                />
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.45,
+                    ease: "easeOut",
+                    delay: 0.4 + i * 0.08,
+                  }}
+                >
+                  <SuggestionCard
+                    icon={s.icon}
+                    iconBg={s.iconBg}
+                    label={s.label}
+                    onClick={() => sendMessage(s.prompt)}
+                  />
+                </motion.div>
               ))}
             </div>
           </div>
@@ -229,7 +302,12 @@ export default function CustomerServicePage() {
       </div>
 
       {/* Input bar */}
-      <div className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-3 pt-2.5 sm:px-6 sm:py-3">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
+        className="relative shrink-0 border-t border-cream-50/10 bg-maroon-950 px-3 pb-3 pt-2.5 sm:px-6 sm:py-3"
+      >
         <form
           onSubmit={handleSubmit}
           className="mx-auto flex max-w-2xl items-end gap-2 rounded-xl border-2 border-cream-50/10 bg-maroon-900 px-2.5 py-1.5 transition-colors focus-within:border-gold-400"
@@ -255,7 +333,7 @@ export default function CustomerServicePage() {
           Jaya Bintang AI dapat memberikan info yang kurang akurat. Untuk pemesanan pasti, hubungi{" "}
           <a href={restaurant.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-gold-400 hover:underline">WhatsApp kami</a>.
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
