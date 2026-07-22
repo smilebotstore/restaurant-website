@@ -55,20 +55,17 @@ export async function POST(req) {
 
     const body = await req.json();
     const clientMessages = Array.isArray(body?.messages) ? body.messages : [];
-    const clientMemory = Array.isArray(body?.memory) ? body.memory : [];
-
-    const isValidMessage = (m) =>
-      m &&
-      (m.role === "user" || m.role === "assistant") &&
-      typeof m.content === "string";
+    const imageContext = body?.imageContext || null; // deskripsi gambar dari Gemini Vision
 
     // Batasi jumlah riwayat pesan yang dikirim supaya request tetap ringan & aman
-    const trimmedHistory = clientMessages.filter(isValidMessage).slice(-20);
-
-    // Memori percakapan lintas-sesi (dari localStorage di client) — tidak
-    // ditampilkan di UI, tapi tetap dikirim ke model supaya AI "ingat" konteks
-    // dari sesi sebelumnya milik user yang sama.
-    const memoryHistory = clientMemory.filter(isValidMessage).slice(-16);
+    const trimmedHistory = clientMessages
+      .filter(
+        (m) =>
+          m &&
+          (m.role === "user" || m.role === "assistant") &&
+          typeof m.content === "string"
+      )
+      .slice(-20);
 
     if (trimmedHistory.length === 0) {
       return NextResponse.json(
@@ -87,12 +84,28 @@ export async function POST(req) {
       });
     }
 
+    // Kalau ada konteks gambar, inject ke pesan user terakhir
+    const messagesForGroq = imageContext
+      ? trimmedHistory.map((m, i) => {
+          // Inject hanya ke pesan user paling terakhir
+          if (
+            i === trimmedHistory.length - 1 &&
+            m.role === "user"
+          ) {
+            return {
+              ...m,
+              content: `${m.content}\n\n[Pengguna mengirim gambar. Hasil analisis gambar: ${imageContext}]`,
+            };
+          }
+          return m;
+        })
+      : trimmedHistory;
+
     const payload = {
       model: GROQ_MODEL,
       messages: [
         { role: "system", content: buildSystemPrompt() },
-        ...memoryHistory,
-        ...trimmedHistory,
+        ...messagesForGroq,
       ],
       temperature: 0.6,
       max_tokens: 600,
