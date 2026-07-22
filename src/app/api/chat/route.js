@@ -55,16 +55,20 @@ export async function POST(req) {
 
     const body = await req.json();
     const clientMessages = Array.isArray(body?.messages) ? body.messages : [];
+    const clientMemory = Array.isArray(body?.memory) ? body.memory : [];
+
+    const isValidMessage = (m) =>
+      m &&
+      (m.role === "user" || m.role === "assistant") &&
+      typeof m.content === "string";
 
     // Batasi jumlah riwayat pesan yang dikirim supaya request tetap ringan & aman
-    const trimmedHistory = clientMessages
-      .filter(
-        (m) =>
-          m &&
-          (m.role === "user" || m.role === "assistant") &&
-          typeof m.content === "string"
-      )
-      .slice(-20);
+    const trimmedHistory = clientMessages.filter(isValidMessage).slice(-20);
+
+    // Memori percakapan lintas-sesi (dari localStorage di client) — tidak
+    // ditampilkan di UI, tapi tetap dikirim ke model supaya AI "ingat" konteks
+    // dari sesi sebelumnya milik user yang sama.
+    const memoryHistory = clientMemory.filter(isValidMessage).slice(-16);
 
     if (trimmedHistory.length === 0) {
       return NextResponse.json(
@@ -87,6 +91,7 @@ export async function POST(req) {
       model: GROQ_MODEL,
       messages: [
         { role: "system", content: buildSystemPrompt() },
+        ...memoryHistory,
         ...trimmedHistory,
       ],
       temperature: 0.6,
