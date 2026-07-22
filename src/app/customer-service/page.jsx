@@ -48,28 +48,28 @@ export default function CustomerServicePage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [viewportHeight, setViewportHeight] = useState(null);
-  const scrollRef = useRef(null);
+  const bodyRef = useRef(null);
 
-  // Fix ketidakkonsistenan unit dvh/vh di berbagai browser mobile:
-  // pakai tinggi viewport asli dari JS (window.innerHeight / visualViewport),
-  // yang selalu akurat mengikuti ukuran layar yang benar-benar terlihat.
+  // Kunci scroll halaman (html/body) selama di halaman ini supaya scroll-into-view
+  // di bawah tidak pernah "bocor" ke document dan membuat layout terasa mentok/stuck.
   useEffect(() => {
-    function updateHeight() {
-      const h = window.visualViewport?.height || window.innerHeight;
-      setViewportHeight(h);
-    }
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-    window.visualViewport?.addEventListener("resize", updateHeight);
+    const { style } = document.body;
+    const prevOverflow = style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("resize", updateHeight);
-      window.visualViewport?.removeEventListener("resize", updateHeight);
+      style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
     };
   }, []);
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll hanya di dalam container chat itu sendiri (bukan scrollIntoView,
+    // yang bisa ikut menggeser scroll ancestor/document di beberapa browser mobile).
+    const el = bodyRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
   async function sendMessage(text) {
@@ -122,10 +122,7 @@ export default function CustomerServicePage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div
-      className="relative flex flex-col overflow-hidden bg-maroon-950"
-      style={{ height: viewportHeight ? `${viewportHeight}px` : "100vh" }}
-    >
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-maroon-950">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-maroon-700/30 blur-3xl" />
         <div className="absolute -bottom-24 right-0 h-96 w-96 rounded-full bg-gold-500/10 blur-3xl" />
@@ -158,7 +155,10 @@ export default function CustomerServicePage() {
       </header>
 
       {/* Body */}
-      <div className="relative flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+      <div
+        ref={bodyRef}
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6"
+      >
         {!hasMessages ? (
           <div className="mx-auto flex min-h-full max-w-lg flex-col items-center justify-center py-6 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 sm:h-16 sm:w-16 sm:rounded-2xl">
@@ -224,7 +224,6 @@ export default function CustomerServicePage() {
               </div>
             )}
 
-            <div ref={scrollRef} />
           </div>
         )}
       </div>
