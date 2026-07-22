@@ -186,7 +186,8 @@ export default function CustomerServicePage() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex max-w-2xl flex-col gap-4">
+          <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-4">
+            <div className="mt-auto" />
             {messages.map((m, i) => (
               <ChatMessage key={i} role={m.role} content={m.content} />
             ))}
