@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 
-const NEOXR_BASE = "https://api.neoxr.eu/api";
-const NEOXR_API_KEY = process.env.NEOXR_API_KEY || "2taQ2a";
-// Client-ID publik resmi dari dokumentasi Imgur untuk upload anonim. Dipakai
-// sebagai default supaya fitur langsung jalan; untuk kuota lebih besar, daftar
-// Client-ID sendiri gratis di https://api.imgur.com/oauth2/addclient.
-const IMGUR_CLIENT_ID = process.env.IMGUR_CLIENT_ID || "546c25a59c58ad7";
-const IMGUR_UPLOAD_URL = "https://api.imgur.com/3/image";
+// Pakai provider & key yang sama dengan /api/chat supaya konsisten dan gratis
+// selama masih di batas free tier Groq.
+const GROQ_VISION_MODEL =
+  process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 const DEFAULT_QUERY =
   "Jelaskan gambar ini secara singkat dan jelas dalam Bahasa Indonesia.";
@@ -15,11 +13,12 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req) {
   try {
-    if (!NEOXR_API_KEY) {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
         {
           error:
-            "NEOXR_API_KEY belum diatur di server. Tambahkan environment variable NEOXR_API_KEY terlebih dahulu.",
+            "GROQ_API_KEY belum diatur di server. Tambahkan environment variable GROQ_API_KEY terlebih dahulu.",
         },
         { status: 500 }
       );
@@ -50,58 +49,56 @@ export async function POST(req) {
       );
     }
 
-    // Upload ke Imgur dulu supaya dapat URL publik yang bisa diakses API vision
-    const imgurForm = new FormData();
-    imgurForm.append("image", file, file.name || "image.jpg");
+    // Kirim gambar langsung sebagai data URI base64 ke Groq — tidak perlu
+    // hosting gambar publik dulu (beda dari Neoxr yang butuh URL publik).
+    const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const dataUri = `data:${file.type};base64,${base64}`;
 
-    const imgurRes = await fetch(IMGUR_UPLOAD_URL, {
+    const payload = {
+      model: GROQ_VISION_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: query },
+            { type: "image_url", image_url: { url: dataUri } },
+          ],
+        },
+      ],
+      temperature: 0.4,
+      max_tokens: 600,
+    };
+
+    const groqRes = await fetch(GROQ_ENDPOINT, {
       method: "POST",
-      headers: { Authorization: `Client-ID ${IMGUR_CLIENT_ID}` },
-      body: imgurForm,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
     });
 
-    const imgurData = await imgurRes.json().catch(() => null);
-
-    if (!imgurRes.ok || !imgurData?.success || !imgurData?.data?.link) {
-      console.error("Imgur upload error:", imgurRes.status, imgurData);
-      return NextResponse.json(
-        { error: "Gagal mengunggah gambar, coba lagi ya." },
-        { status: 502 }
-      );
-    }
-
-    const imageUrl = imgurData.data.link;
-
-    const visionUrl = `${NEOXR_BASE}/gemini-vision?${new URLSearchParams({
-      image: imageUrl,
-      query,
-      lang: "id",
-      apikey: NEOXR_API_KEY,
-    })}`;
-
-    const visionRes = await fetch(visionUrl);
-
-    if (!visionRes.ok) {
-      const errText = await visionRes.text();
-      console.error("Neoxr gemini-vision error:", visionRes.status, errText);
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error("Groq vision API error:", groqRes.status, errText);
       return NextResponse.json(
         { error: "Jaya Bintang AI gagal menganalisis gambar, coba lagi ya." },
         { status: 502 }
       );
     }
 
-    const visionData = await visionRes.json();
-    const result = visionData?.data?.result;
+    const data = await groqRes.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    if (!visionData?.status || !result) {
-      console.error("Neoxr gemini-vision unexpected response:", visionData);
+    if (!reply) {
+      console.error("Groq vision unexpected response:", data);
       return NextResponse.json(
         { error: "Jaya Bintang AI gagal menganalisis gambar, coba lagi ya." },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({ reply: result, imageUrl });
+    return NextResponse.json({ reply });
   } catch (err) {
     console.error("Vision API error:", err);
     return NextResponse.json(
