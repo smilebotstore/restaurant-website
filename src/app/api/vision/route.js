@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 // Pakai provider & key yang sama dengan /api/chat supaya konsisten dan gratis
 // selama masih di batas free tier Groq.
-const GROQ_VISION_MODEL =
-  process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.6-27b";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 const DEFAULT_QUERY =
@@ -67,6 +66,11 @@ export async function POST(req) {
       ],
       temperature: 0.4,
       max_tokens: 600,
+      // Qwen3.6 punya thinking mode yang bisa menghabiskan token budget untuk
+      // reasoning internal (muncul sebagai blok <think>) sebelum sempat kasih
+      // jawaban final — matikan supaya jawaban langsung final & tidak kepotong.
+      reasoning_effort: "none",
+      reasoning_format: "hidden",
     };
 
     const groqRes = await fetch(GROQ_ENDPOINT, {
