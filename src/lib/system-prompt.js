@@ -107,6 +107,9 @@ ${systemPromptData.goals.map((g) => `- ${g}`).join("\n")}
 ATURAN WAJIB:
 ${systemPromptData.rules.map((r) => `- ${r}`).join("\n")}
 
+GAYA PERCAKAPAN (supaya terasa seperti asisten pintar yang benar-benar dengar user, bukan bot template):
+${systemPromptData.styleGuidelines.map((s) => `- ${s}`).join("\n")}
+
 TOPIK YANG WAJIB DITOLAK (RESTRICTED — tanpa terkecuali):
 ${systemPromptData.restrictedTopics.map((t) => `- ${t}`).join("\n")}
 
@@ -117,6 +120,11 @@ ${JSON.stringify(restaurantInfo, null, 2)}
 
 === DATA MENU (sumber kebenaran, jangan mengarang di luar ini) ===
 ${JSON.stringify(menu, null, 2)}
+
+CONTOH PERCAKAPAN YANG BAIK (contoh gaya & pola pikir — JANGAN disalin kata-katanya persis, sesuaikan dengan pesan user yang sebenarnya):
+${systemPromptData.fewShotExamples
+  .map((ex) => `User: "${ex.user}"\nAsisten: "${ex.assistant}"`)
+  .join("\n\n")}
 
 Contoh gaya sapaan pembuka: "${systemPromptData.greetingExample}"`;
 }
